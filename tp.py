@@ -11,12 +11,12 @@ WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Blackjack")
 
-# colors
+# Colors
 GREEN = (34, 139, 34)
 WHITE = (255, 255, 255)
 
 # Directorio de imágenes
-CARD_IMAGES_DIR = r'C:\Users\maxlu\OneDrive\Documentos\Uade\Algoritmos\playing-cards-pack\PNG\Cards'
+CARD_IMAGES_DIR = r'C:\Users\Joaco Gimenez\Desktop\Algoritmos y Estructura de datos 1\Cards'
 
 # Fuente para el texto
 font = pygame.font.SysFont(None, 36)
@@ -83,36 +83,40 @@ def draw_hand(screen, hand, card_images, x, y, hide_second=False):
             card_name = f"card_{suit}_0{rank}"
             draw_card(screen, card_images[card_name], x + i * 30, y)
 
-# Funcion para dibujar texto en pantalla
+# Función para dibujar texto en pantalla
 def draw_text(screen, text, font, color, x, y):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
 
-# Bucle principal del juego
-def main():
-    clock = pygame.time.Clock()
-    card_images = load_card_images()
-
-    # Inicializar el juego
+# Reiniciar el juego
+def reset_game():
+    global deck, player_hand, dealer_hand, player_standing, game_over, result
     deck = create_deck()
     player_hand = []
     dealer_hand = []
     player_standing = False
     game_over = False
     result = ""
-
+    
     # Repartir cartas iniciales
     deal_card(deck, player_hand)
     deal_card(deck, player_hand)
     deal_card(deck, dealer_hand)
     deal_card(deck, dealer_hand)
 
+# Bucle principal del juego
+def main():
+    global deck, player_hand, dealer_hand, player_standing, game_over, result
+    clock = pygame.time.Clock()
+    card_images = load_card_images()
+    reset_game()
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN: ###funcion s y h para pedir
+            elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_h and not player_standing and not game_over:
                     # El jugador pide carta ("Hit")
                     deal_card(deck, player_hand)
@@ -122,6 +126,13 @@ def main():
                 elif event.key == pygame.K_s and not player_standing:
                     # El jugador se planta ("Stand")
                     player_standing = True
+                elif event.key == pygame.K_r and game_over:
+                    # Reiniciar el juego ("R")
+                    reset_game()
+                elif event.key == pygame.K_q and game_over:
+                    # Salir del juego ("Q")
+                    pygame.quit()
+                    sys.exit()
 
         if player_standing and not game_over:
             while calculate_hand_value(dealer_hand) < 17:
@@ -157,12 +168,11 @@ def main():
 
         # Mostrar el resultado si el juego ha terminado
         if game_over:
-            draw_text(screen, result, font, WHITE, 350, 300)
+            draw_text(screen, result, font, WHITE, 50, 500)  # Ajusta la posición del texto
+            draw_text(screen, "Presiona 'R' para reiniciar o 'Q' para salir", font, WHITE, 50, 550)  # Ajusta la posición del texto
 
         pygame.display.flip()
         clock.tick(60)
 
 if __name__ == "__main__":
     main()
-
-
