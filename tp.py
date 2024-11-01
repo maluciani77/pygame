@@ -15,13 +15,14 @@ pygame.display.set_caption("Blackjack")
 GREEN = (34, 139, 34)
 WHITE = (255, 255, 255)
 
-# Directorio de imágenes
+# Constantes
 CARD_IMAGES_DIR = r'C:\Users\Joaco Gimenez\Desktop\Algoritmos y Estructura de datos 1\Cards'
+SALDOTXT_PATH = "saldonuevo.txt"
 
 # Fuente para el texto
 font = pygame.font.SysFont(None, 36)
 
-# Cargar las imágenes de las cartas
+# Función para cargar las imágenes de las cartas
 def load_card_images():
     card_images = {}
     suits = ['hearts', 'diamonds', 'clubs', 'spades']
@@ -59,7 +60,6 @@ def calculate_hand_value(hand):
         else:
             value += int(rank)
     
-    # Ajustar el valor si hay ases y la suma es mayor que 21
     while value > 21 and aces:
         value -= 10
         aces -= 1
@@ -88,17 +88,32 @@ def draw_text(screen, text, font, color, x, y):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
 
+# Leer saldo del archivo
+def read_balance():
+    try:
+        with open(SALDOTXT_PATH, "r") as file:
+            balance = int(file.read().strip())
+    except FileNotFoundError:
+        balance = 1000  # Saldo inicial si el archivo no existe
+    return balance
+
+# Escribir saldo en el archivo
+def write_balance(balance):
+    with open(SALDOTXT_PATH, "w") as file:
+        file.write(str(balance))
+
 # Reiniciar el juego
 def reset_game():
-    global deck, player_hand, dealer_hand, player_standing, game_over, result
+    global deck, player_hand, dealer_hand, player_standing, game_over, result, balance, bet
     deck = create_deck()
     player_hand = []
     dealer_hand = []
     player_standing = False
     game_over = False
     result = ""
-    
-    # Repartir cartas iniciales
+    balance = read_balance()  # Leer saldo actual
+    bet = 100  # Apuesta fija (puedes modificarlo)
+
     deal_card(deck, player_hand)
     deal_card(deck, player_hand)
     deal_card(deck, dealer_hand)
@@ -106,7 +121,7 @@ def reset_game():
 
 # Bucle principal del juego
 def main():
-    global deck, player_hand, dealer_hand, player_standing, game_over, result
+    global deck, player_hand, dealer_hand, player_standing, game_over, result, balance, bet
     clock = pygame.time.Clock()
     card_images = load_card_images()
     reset_game()
@@ -118,19 +133,17 @@ def main():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_h and not player_standing and not game_over:
-                    # El jugador pide carta ("Hit")
                     deal_card(deck, player_hand)
                     if calculate_hand_value(player_hand) > 21:
                         result = "Perdiste, te pasaste de 21."
+                        balance -= bet
+                        write_balance(balance)
                         game_over = True
                 elif event.key == pygame.K_s and not player_standing:
-                    # El jugador se planta ("Stand")
                     player_standing = True
                 elif event.key == pygame.K_r and game_over:
-                    # Reiniciar el juego ("R")
                     reset_game()
                 elif event.key == pygame.K_q and game_over:
-                    # Salir del juego ("Q")
                     pygame.quit()
                     sys.exit()
 
@@ -141,38 +154,38 @@ def main():
             player_value = calculate_hand_value(player_hand)
             dealer_value = calculate_hand_value(dealer_hand)
 
-            if dealer_value > 21:
-                result = "¡Ganaste! El dealer se pasó de 21."
-            elif player_value > dealer_value:
+            if dealer_value > 21 or player_value > dealer_value:
                 result = "¡Ganaste!"
+                balance += bet
+                write_balance(balance)
             elif player_value < dealer_value:
                 result = "Perdiste..."
+                balance -= bet
+                write_balance(balance)
             else:
                 result = "Empate"
-
             game_over = True
 
-        # Dibujar fondo
         screen.fill(GREEN)
         pygame.draw.rect(screen, WHITE, (50, 50, WIDTH - 100, HEIGHT - 200), 5)
 
-        # Dibujar las manos de jugador y dealer
         draw_hand(screen, player_hand, card_images, 100, 400)
         draw_hand(screen, dealer_hand, card_images, 100, 100, hide_second=not player_standing)
 
-        # Mostrar el valor de las manos
         player_value = calculate_hand_value(player_hand)
         dealer_value = calculate_hand_value(dealer_hand) if player_standing else calculate_hand_value(dealer_hand[:-1])
         draw_text(screen, f"Jugador: {player_value}", font, WHITE, 50, 350)
         draw_text(screen, f"Dealer: {dealer_value}", font, WHITE, 50, 50)
 
-        # Mostrar el resultado si el juego ha terminado
+        # Mostrar el saldo actual
+        draw_text(screen, f"Saldo: {balance}", font, WHITE, 600, 50)
+
         if game_over:
-            draw_text(screen, result, font, WHITE, 50, 500)  # Ajusta la posición del texto
-            draw_text(screen, "Presiona 'R' para reiniciar o 'Q' para salir", font, WHITE, 50, 550)  # Ajusta la posición del texto
+            draw_text(screen, result, font, WHITE, 50, 500)
+            draw_text(screen, "Presiona 'R' para reiniciar o 'Q' para salir", font, WHITE, 50, 550)
 
         pygame.display.flip()
         clock.tick(60)
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
