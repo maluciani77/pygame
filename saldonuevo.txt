@@ -1,0 +1,14 @@
+Resultado: Perdiste, saldo actual: 100
+Resultado: Empate, saldo actual: 100
+Resultado: Perdiste, saldo actual: -900
+Resultado: Perdiste, saldo actual: -1900
+Resultado: Ganaste, saldo actual: -900
+Resultado: Perdiste, saldo actual: -1900
+Resultado: Perdiste, saldo actual: -2900
+Resultado: Perdiste, saldo actual: -3100
+Resultado: Perdiste, saldo actual: -3300
+Resultado: Ganaste, saldo actual: -3100
+Resultado: Ganaste, saldo actual: -1100
+Resultado: Perdiste, saldo actual: -3100
+Resultado: Ganaste, saldo actual: -2900
+Resultado: Perdiste, saldo actual: -3100
