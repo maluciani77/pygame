@@ -14,15 +14,20 @@ pygame.display.set_caption("Blackjack")
 # Colors
 GREEN = (34, 139, 34)
 WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
 
 # Constantes
-CARD_IMAGES_DIR = r'C:\Users\Joaco Gimenez\Desktop\Algoritmos y Estructura de datos 1\Cards'
+CARD_IMAGES_DIR = r'C:\Users\maxlu\OneDrive\Documentos\Uade\Algoritmos\playing-cards-pack\Cards'
 SALDOTXT_PATH = "saldonuevo.txt"
+MIN_APUESTA = 100  # Apuesta mínima
+MAX_APUESTA = 1000  # Apuesta máxima
+INCREMENTO_APUESTA = 100  # Incremento de apuesta
 
 # Fuente para el texto
 font = pygame.font.SysFont(None, 36)
 
-# Función para cargar las imágenes de las cartas
+# Cargar las imágenes de las cartas
 def load_card_images():
     card_images = {}
     suits = ['hearts', 'diamonds', 'clubs', 'spades']
@@ -88,31 +93,40 @@ def draw_text(screen, text, font, color, x, y):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
 
-# Leer saldo del archivo
-def read_balance():
+# Función para leer el saldo
+def leer_saldo():
     try:
         with open(SALDOTXT_PATH, "r") as file:
-            balance = int(file.read().strip())
-    except FileNotFoundError:
-        balance = 1000  # Saldo inicial si el archivo no existe
-    return balance
+            lines = file.readlines()
+            last_line = lines[-1]
+            saldo = int(last_line.split(":")[-1].strip())
+    except (FileNotFoundError, IndexError):
+        saldo = 1000  # Saldo inicial si el archivo no existe o está vacío
+    return saldo
 
-# Escribir saldo en el archivo
-def write_balance(balance):
-    with open(SALDOTXT_PATH, "w") as file:
-        file.write(str(balance))
+# Función para registrar el resultado en el archivo de saldo
+def registrar_resultado(resultado, saldo_actual, apuesta):
+    with open(SALDOTXT_PATH, "a") as file:
+        if resultado == "win":
+            file.write(f"Resultado: Ganaste, saldo actual: {saldo_actual + apuesta}\n")
+        elif resultado == "lose":
+            file.write(f"Resultado: Perdiste, saldo actual: {saldo_actual - apuesta}\n")
+        elif resultado == "tie":
+            file.write(f"Resultado: Empate, saldo actual: {saldo_actual}\n")
+        else:
+            file.write(f"Saldo actual: {saldo_actual}\n")
 
 # Reiniciar el juego
 def reset_game():
-    global deck, player_hand, dealer_hand, player_standing, game_over, result, balance, bet
+    global deck, player_hand, dealer_hand, player_standing, game_over, result, saldo, apuesta
     deck = create_deck()
     player_hand = []
     dealer_hand = []
     player_standing = False
     game_over = False
     result = ""
-    balance = read_balance()  # Leer saldo actual
-    bet = 100  # Apuesta fija (puedes modificarlo)
+    saldo = leer_saldo()
+    apuesta = MIN_APUESTA  # Apuesta inicial
 
     deal_card(deck, player_hand)
     deal_card(deck, player_hand)
@@ -121,7 +135,7 @@ def reset_game():
 
 # Bucle principal del juego
 def main():
-    global deck, player_hand, dealer_hand, player_standing, game_over, result, balance, bet
+    global deck, player_hand, dealer_hand, player_standing, game_over, result, saldo, apuesta
     clock = pygame.time.Clock()
     card_images = load_card_images()
     reset_game()
@@ -136,8 +150,8 @@ def main():
                     deal_card(deck, player_hand)
                     if calculate_hand_value(player_hand) > 21:
                         result = "Perdiste, te pasaste de 21."
-                        balance -= bet
-                        write_balance(balance)
+                        saldo -= apuesta
+                        registrar_resultado("lose", saldo, apuesta)
                         game_over = True
                 elif event.key == pygame.K_s and not player_standing:
                     player_standing = True
@@ -146,6 +160,12 @@ def main():
                 elif event.key == pygame.K_q and game_over:
                     pygame.quit()
                     sys.exit()
+                elif event.key == pygame.K_UP:  # Aumentar apuesta
+                    if apuesta + INCREMENTO_APUESTA <= MAX_APUESTA:
+                        apuesta += INCREMENTO_APUESTA
+                elif event.key == pygame.K_DOWN:  # Reducir apuesta
+                    if apuesta - INCREMENTO_APUESTA >= MIN_APUESTA:
+                        apuesta -= INCREMENTO_APUESTA
 
         if player_standing and not game_over:
             while calculate_hand_value(dealer_hand) < 17:
@@ -154,16 +174,21 @@ def main():
             player_value = calculate_hand_value(player_hand)
             dealer_value = calculate_hand_value(dealer_hand)
 
-            if dealer_value > 21 or player_value > dealer_value:
+            if dealer_value > 21:
+                result = "¡Ganaste! El dealer se pasó de 21."
+                saldo += apuesta
+                registrar_resultado("win", saldo, apuesta)
+            elif player_value > dealer_value:
                 result = "¡Ganaste!"
-                balance += bet
-                write_balance(balance)
+                saldo += apuesta
+                registrar_resultado("win", saldo, apuesta)
             elif player_value < dealer_value:
                 result = "Perdiste..."
-                balance -= bet
-                write_balance(balance)
+                saldo -= apuesta
+                registrar_resultado("lose", saldo, apuesta)
             else:
                 result = "Empate"
+                registrar_resultado("tie", saldo)
             game_over = True
 
         screen.fill(GREEN)
@@ -175,10 +200,9 @@ def main():
         player_value = calculate_hand_value(player_hand)
         dealer_value = calculate_hand_value(dealer_hand) if player_standing else calculate_hand_value(dealer_hand[:-1])
         draw_text(screen, f"Jugador: {player_value}", font, WHITE, 50, 350)
-        draw_text(screen, f"Dealer: {dealer_value}", font, WHITE, 50, 50)
-
-        # Mostrar el saldo actual
-        draw_text(screen, f"Saldo: {balance}", font, WHITE, 600, 50)
+        draw_text(screen, f"Dealer: {dealer_value}", font, BLACK, 50, 50)
+        draw_text(screen, f"Saldo actual: {saldo}", font, WHITE, 500, 150)
+        draw_text(screen, f"Apuesta: {apuesta}", font, RED, 500, 100)
 
         if game_over:
             draw_text(screen, result, font, WHITE, 50, 500)
@@ -187,5 +211,5 @@ def main():
         pygame.display.flip()
         clock.tick(60)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
