@@ -97,7 +97,7 @@ def draw_text(screen, text, font, color, x, y):
 def leer_saldo():
     try:
         with open(SALDOTXT_PATH, "r") as file:
-            lines = file.readlines()
+            lines = file.readlines()    
             last_line = lines[-1]
             saldo = int(last_line.split(":")[-1].strip())
     except (FileNotFoundError, IndexError):
@@ -116,57 +116,85 @@ def registrar_resultado(resultado, saldo_actual, apuesta):
         else:
             file.write(f"Saldo actual: {saldo_actual}\n")
 
-# Reiniciar el juego
+# Reiniciar el juego sin afectar el saldo
 def reset_game():
-    global deck, player_hand, dealer_hand, player_standing, game_over, result, saldo, apuesta
+    global deck, player_hand, dealer_hand, player_standing, game_over, result, apuesta
     deck = create_deck()
     player_hand = []
     dealer_hand = []
     player_standing = False
     game_over = False
     result = ""
-    saldo = leer_saldo()
     apuesta = MIN_APUESTA  # Apuesta inicial
 
-    deal_card(deck, player_hand)
-    deal_card(deck, player_hand)
-    deal_card(deck, dealer_hand)
-    deal_card(deck, dealer_hand)
+    if saldo < MIN_APUESTA:  # Verificar saldo
+        result = "Saldo insuficiente para continuar."
+        game_over = True
+    else:
+        deal_card(deck, player_hand)
+        deal_card(deck, player_hand)
+        deal_card(deck, dealer_hand)
+        deal_card(deck, dealer_hand)
 
-# Bucle principal del juego
+# Crear botones con colores y texto
+def draw_button(screen, text, font, color, rect_color, x, y, width, height):
+    pygame.draw.rect(screen, rect_color, (x, y, width, height))
+    text_surface = font.render(text, True, color)
+    text_rect = text_surface.get_rect(center=(x + width // 2, y + height // 2))
+    screen.blit(text_surface, text_rect)
+
+# Verificar si un clic está dentro de un botón
+def is_button_clicked(mouse_pos, x, y, width, height):
+    return x <= mouse_pos[0] <= x + width and y <= mouse_pos[1] <= y + height
+
+# Bucle principal del juego con botones para pedir, quedarse, subir y bajar apuesta
 def main():
     global deck, player_hand, dealer_hand, player_standing, game_over, result, saldo, apuesta
     clock = pygame.time.Clock()
     card_images = load_card_images()
+    saldo = leer_saldo()  # Cargar el saldo al iniciar
     reset_game()
-    
+
+    # Coordenadas y dimensiones de los botones
+    button_width = 200
+    button_height = 50
+    pedir_button = (100, HEIGHT - 100, button_width, button_height)
+    quedarse_button = (300, HEIGHT - 100, button_width, button_height)
+    subir_apuesta_button = (500, HEIGHT - 400, button_width, button_height)
+    bajar_apuesta_button = (500, HEIGHT - 300, button_width, button_height)
+    reiniciar_button = (300, HEIGHT - 50, button_width, button_height)
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_h and not player_standing and not game_over:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = event.pos
+                # Botón "Pedir"
+                if is_button_clicked(mouse_pos, *pedir_button) and not player_standing and not game_over:
                     deal_card(deck, player_hand)
                     if calculate_hand_value(player_hand) > 21:
                         result = "Perdiste, te pasaste de 21."
                         saldo -= apuesta
                         registrar_resultado("lose", saldo, apuesta)
                         game_over = True
-                elif event.key == pygame.K_s and not player_standing:
+                # Botón "Quedarse"
+                elif is_button_clicked(mouse_pos, *quedarse_button) and not player_standing:
                     player_standing = True
-                elif event.key == pygame.K_r and game_over:
-                    reset_game()
-                elif event.key == pygame.K_q and game_over:
-                    pygame.quit()
-                    sys.exit()
-                elif event.key == pygame.K_UP:  # Aumentar apuesta
+                # Botón "Subir apuesta"
+                elif is_button_clicked(mouse_pos, *subir_apuesta_button) and not game_over:
                     if apuesta + INCREMENTO_APUESTA <= MAX_APUESTA:
                         apuesta += INCREMENTO_APUESTA
-                elif event.key == pygame.K_DOWN:  # Reducir apuesta
+                # Botón "Bajar apuesta"
+                elif is_button_clicked(mouse_pos, *bajar_apuesta_button) and not game_over:
                     if apuesta - INCREMENTO_APUESTA >= MIN_APUESTA:
                         apuesta -= INCREMENTO_APUESTA
+                # Botón "Reiniciar"
+                elif is_button_clicked(mouse_pos, *reiniciar_button) and game_over:
+                    reset_game()
 
+        # Si el jugador se queda, el dealer juega
         if player_standing and not game_over:
             while calculate_hand_value(dealer_hand) < 17:
                 deal_card(deck, dealer_hand)
@@ -191,12 +219,15 @@ def main():
                 registrar_resultado("tie", saldo)
             game_over = True
 
+        # Dibujar la interfaz
         screen.fill(GREEN)
         pygame.draw.rect(screen, WHITE, (50, 50, WIDTH - 100, HEIGHT - 200), 5)
 
+        # Dibujar las manos del jugador y del dealer
         draw_hand(screen, player_hand, card_images, 100, 400)
         draw_hand(screen, dealer_hand, card_images, 100, 100, hide_second=not player_standing)
 
+        # Dibujar información del juego
         player_value = calculate_hand_value(player_hand)
         dealer_value = calculate_hand_value(dealer_hand) if player_standing else calculate_hand_value(dealer_hand[:-1])
         draw_text(screen, f"Jugador: {player_value}", font, WHITE, 50, 350)
@@ -204,12 +235,20 @@ def main():
         draw_text(screen, f"Saldo actual: {saldo}", font, WHITE, 500, 150)
         draw_text(screen, f"Apuesta: {apuesta}", font, RED, 500, 100)
 
+        # Mostrar resultado al finalizar el juego
         if game_over:
-            draw_text(screen, result, font, WHITE, 50, 500)
-            draw_text(screen, "Presiona 'R' para reiniciar o 'Q' para salir", font, WHITE, 50, 550)
+            draw_text(screen, result, font, WHITE, 300, 400)
+            draw_button(screen, "Reiniciar", font, WHITE, (128, 0, 128), *reiniciar_button)
+
+        # Dibujar botones de juego
+        draw_button(screen, "Pedir", font, BLACK, (0, 255, 0), *pedir_button)
+        draw_button(screen, "Quedarse", font, WHITE, (255, 0, 0), *quedarse_button)
+        draw_button(screen, "Subir Apuesta", font, BLACK, (255, 255, 0), *subir_apuesta_button)
+        draw_button(screen, "Bajar Apuesta", font, WHITE, (0, 0, 255), *bajar_apuesta_button)
 
         pygame.display.flip()
         clock.tick(60)
+
 
 if __name__ == "__main__":
     main()
